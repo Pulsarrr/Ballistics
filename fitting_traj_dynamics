@@ -1,0 +1,150 @@
+clc;
+clear all;
+
+%% НАЧАЛЬНЫЕ УСТАНОВКИ
+    % исходная на которой все тестил
+    load('data.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+
+    % отдельные траектории
+    load('./data/TrajectoryId_1_numOfPoints_20_elangle_48.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+    load('./data/TrajectoryId_1_numOfPoints_40_elangle_46.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+    load('./data/TrajectoryId_1_numOfPoints_60_elangle_46.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+%     load('./data/TrajectoryId_2_numOfPoints_20_elangle_48.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+%     load('./data/TrajectoryId_2_numOfPoints_40_elangle_46.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+%     load('./data/TrajectoryId_2_numOfPoints_60_elangle_46.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+%     load('./data/TrajectoryId_3_numOfPoints_20_elangle_48.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+%     load('./data/TrajectoryId_3_numOfPoints_40_elangle_46.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+%     load('./data/TrajectoryId_3_numOfPoints_60_elangle_46.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+%     load('./data/TrajectoryId_4_numOfPoints_20_elangle_48.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+%     load('./data/TrajectoryId_4_numOfPoints_40_elangle_46.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+%     load('./data/TrajectoryId_4_numOfPoints_60_elangle_46.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+%     load('./data/TrajectoryId_5_numOfPoints_20_elangle_48.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+%     load('./data/TrajectoryId_5_numOfPoints_60_elangle_46.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+%     load('./data/TrajectoryId_6_numOfPoints_20_elangle_48.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+%     load('./data/TrajectoryId_6_numOfPoints_60_elangle_46.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+%     load('./data/TrajectoryId_7_numOfPoints_20_elangle_48.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+%     load('./data/TrajectoryId_7_numOfPoints_60_elangle_46.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+    load('./data/TrajectoryId_8_numOfPoints_20_elangle_48.mat', "noizy_coords_time", "noizy_coords", "data", '-mat');
+
+    % переобозначаем переменные для удобства
+    X_0     = data(4:6, 1);
+    X_1     = data(4:6, end);
+    T       = noizy_coords_time'; %20*1
+    Y       = noizy_coords; %3*20
+    Y(2, end)
+    Y(1)
+%% АППРОКСИМАЦИЯ
+    optoptions              = optimoptions(@fmincon);
+    optoptions.Display      = 'iter';
+    optoptions.MaxFunEvals  = 1e+5;
+    optoptions.MaxIter      = 1e+3;
+    optoptions.TolFun       = 1e-12;
+    optoptions.TolX         = 1e-12;
+    optoptions.Algorithm    = 'sqp';
+
+    init.Z_0        = 0.0;
+    init.lat        = 55.7;
+    init.h          = 147;
+
+    [lb, ub, the0]  = getInitialGuess(T, Y);
+
+    theEst          = get_opt_sol(T, Y, the0, lb, ub, optoptions, init);
+    [Xest, t]       = getFun(theEst, T, init);
+
+    X_Start         = Xest(:, 1);
+    R_Start         = sqrt(sum( ( X_Start - X_0 ).^2 ) )
+    X_End           = Xest(:, end);
+    R_End           = sqrt(sum( ( X_End - X_1 ).^2 ) );
+    
+%% ГРАФИК
+    figure(1)
+    clf;
+    
+    if size(data, 2) > 1
+        plot3(data(4,:), data(5,:), data(6,:), 'LineWidth', 4, 'Color', [0 1 0]);
+    end
+    hold on
+
+    scatter3(data(4,1), data(5,1), data(6,1), 200, [0 0 0], 'p', 'filled');
+    if size(data, 2) > 1
+        scatter3(data(4, end), data(5, end), data(6, end), 50, [0 1 0], 'filled');
+    end
+
+    scatter3(Y(1,:), Y(2,:), Y(3,:), 25, [0 0 1])
+
+    plot3(Xest(1,:), Xest(2,:), Xest(3,:), 'LineWidth', 4, 'Color', [1 0 0]);
+
+    scatter3(X_Start(1), X_Start(2), X_Start(3), 100, [0 0 0], 'filled');
+    scatter3(X_End(1), X_End(2), X_End(3), 50, [1 0 0], 'filled');
+
+    if size(data, 2) > 1
+        legend('Истинная траектория', 'Истинное начало', 'Истинный конец', ...
+                'Измеренная траектория', 'Аппроксимация траектория', ...
+                'Вычисленное начало', 'Вычисленный конец');
+    else
+        legend('Истинное начало', ...
+                'Измеренная траектория', 'Аппроксимация траектория', ...
+                'Вычисленное начало', 'Вычисленный конец');
+    end    
+
+    xlabel('X [m]')
+    ylabel('Y [m]')
+    zlabel('Z [m]')
+    grid on
+    axis equal
+
+    view(-45, 30);
+
+%% ФУНКЦИЯ ОПТИМИЗАЦИИ
+    % оптимальная аппроксимация экспериментально полученной траектории
+    function the = get_opt_sol(T, Y, the0, lb, ub, optoptions, init)
+        the     = fmincon(@fmin, the0, [], [], [], [], lb, ub, [], optoptions);
+        
+        function F = fmin(the)
+            [X, ~]  = getFun(the, T, init);
+            X       = X(:, end - length(T) + 1 : end);
+            F       = norm( sqrt(sum((X - Y).^2, 1) ) ) / length(T);
+        end
+    end
+
+    % Расчет поделируемой траектории по заданному вектору параметров
+    function [X, t] = getFun(the, T, init)
+        Fsopr   = the(1);
+        alpha   = the(2);
+        beta    = the(3);
+        phi     = the(4);
+        X_0     = the(5);
+        Y_0     = the(6);
+        V_0     = the(7);
+
+        t       = flipud( ( T(end) : -mean(diff(T)) : 0.0 + the(8) )' );
+        X       = get_ballistic_trajectory(Fsopr, alpha, beta, phi, X_0, Y_0, init.Z_0, V_0, t, init.lat, init.h);
+    end
+
+    % Расчет пределов поиска параметров. Особенно актуально для углов альфа
+    % и фи. Задаются также начальные условиея, но это не принципиально
+    function [lb, ub, the0] = getInitialGuess(T, Y)
+                % Fsopr,    alpha,  beta,   phi,    X_0,    Y_0,    V_0,    T_0
+        lb      = [-1e+5;   0.0;    -180.0; 0.0;    -1e+5;  -1e+5;  10;     -T(end)];
+        ub      = [+1e+5;   0.0;    180.0;  0.0;    +1e+5;  +1e+5;  1e+4;   T(1)];
+
+    %T       = noizy_coords_time'
+    %Y       = noizy_coords
+        if Y(2, end) < Y(2, 1)
+            lb(2)   = 90.0;
+            ub(2)   = 180.0;
+            alpha   = 135.0;
+        else
+            lb(2)   = 0.0;
+            ub(2)   = 90.0;
+            alpha   = 45.0;
+        end
+
+        phi     = atan2( Y(1, end) - Y(1, 1), Y(2, end) - Y(2, 1) );
+        phi     = rad2deg(phi);
+
+        lb(4)   = phi - 2.0;
+        ub(4)   = phi + 2.0;
+ 
+        the0    = [0.0;     alpha;    0.0;   phi;  Y(1,1);  Y(2,1);  20;  0.0];
+    end
