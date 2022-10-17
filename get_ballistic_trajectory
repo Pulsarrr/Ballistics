@@ -4,7 +4,7 @@ function R = get_ballistic_trajectory(Fsopr, alpha, beta, phi, X_0, Y_0, Z_0, V_
     sys.alpha       = deg2rad(alpha);
     sys.beta        = deg2rad(beta);
     sys.phi         = deg2rad(phi);
-    
+                                        %V_y                                       %V_z
     R_0             = [X_0; Y_0; V_0 * cos(sys.alpha) * cos(sys.phi); Z_0; V_0 * sin(sys.alpha)];
     
     R               = am_ode_runge_kutta_classical(@my_dx, t, R_0, sys);
@@ -46,7 +46,7 @@ function R = get_ballistic_trajectory(Fsopr, alpha, beta, phi, X_0, Y_0, Z_0, V_
             Y(:, k)     = y_k;
         end  
     end  
-    
+
     function dx = my_dx(t, x, sys)
         dx      = zeros(5, 1);
         dx(1)   = x(3) * sin(sys.phi); % x
