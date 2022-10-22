@@ -6,7 +6,20 @@ sys.betta = pi/6;
 sys.phi = pi/3;
 
 
-A = [0, 0, sin(sys.phi), 0, 0;   0, 0, cos(sys.phi), 0, 0;   0, 0, 0, 0, 0;    0, 0, 0, 0, 1;    0, 0, 0, 0, 0];
-B = [0; 0; -cos(sys.alpha)*cos(sys.betta)*cos(sys.phi); 0; -sin(sys.alpha)*sin(sys.phi)]
-C = eye(length(A))
-D = zeros()
+A = [0, 0, sin(sys.phi), 0, 0;   0, 0, cos(sys.phi), 0, 0;   0, 0, 0, 0, 0;    0, 0, 0, 0, 1;    0, 0, 0, 0, 0]; %5x5
+B = [0; 0; -cos(sys.alpha)*cos(sys.betta)*cos(sys.phi); 0; -sin(sys.alpha)*sin(sys.phi)]; %5x1
+C = eye(length(A)); %5x5
+D = zeros(length(A), 1); %5x1
+
+% omega = makedist('Normal')
+mu = 0;
+sigma = 1;
+r = random('Normal', mu, sigma)
+
+init_my_dx = ss(A, B, C, D)
+
+%ввести случайную составляющую (как вписать ее в виде слагаемого в уравнение выхода?)
+%реализовать алгоритм фильтра Калмана 
+
+
+
