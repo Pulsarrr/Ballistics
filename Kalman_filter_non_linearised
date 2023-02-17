@@ -1,25 +1,95 @@
 clc;
 clear all;
 
-sys.alpha = pi/4;
-sys.betta = pi/6;
-sys.phi = pi/3;
+alpha = pi/4;
+betta = pi/6;
+phi = pi/3;
 
-
-A = [0, 0, sin(sys.phi), 0, 0;   0, 0, cos(sys.phi), 0, 0;   0, 0, 0, 0, 0;    0, 0, 0, 0, 1;    0, 0, 0, 0, 0]; %5x5
-B = [0; 0; -cos(sys.alpha)*cos(sys.betta)*cos(sys.phi); 0; -sin(sys.alpha)*sin(sys.phi)]; %5x1
+A = [0, 0, sin(phi), 0, 0;   0, 0, cos(phi), 0, 0;   0, 0, 0, 0, 0;    0, 0, 0, 0, 1;    0, 0, 0, 0, 0]; %5x5
+B = [0; 0; -cos(alpha)*cos(betta)*cos(phi); 0; -sin(alpha)*sin(phi)]; %5x1
 C = eye(length(A)); %5x5
 D = zeros(length(A), 1); %5x1
+Q = eye(5).*10^(-3);%5x5
+
+sys.A = A;
+sys.B = B;
+sys.C = C;
+sys.D = D;
+sys.Q = Q;
 
 % omega = makedist('Normal')
 mu = 0;
 sigma = 1;
-r = random('Normal', mu, sigma)
+r = random('Normal', mu, sigma);
 
-init_my_dx = ss(A, B, C, D)
+init_my_dx = ss(A, B, C, D);
+noise_1 = ss(init_my_dx, 'noise')
 
 %ввести случайную составляющую (как вписать ее в виде слагаемого в уравнение выхода?)
 %реализовать алгоритм фильтра Калмана 
 
+%Kalman filter
+%init condition
+x_0 = eye(5);
+x = x_0;
+P_0 = eye(5);
+P = P_0;
+% for i = (1:1:20)
+%     x = A*x + B*
+% 
+% 
+% end
+x = ode_runge_kutta(@aprior_assessment_x, t, x_0, sys);
+dP = ode_runge_kutta(@aprior_assessment_P, t, P_0, sys);
 
+%%
+function Y = ode_runge_kutta(f, t, y_0, sys)
+        n           = length(t);
+        Y           = zeros(length(y_0), n);
+        Y(:, 1)     = y_0;
+    
+        c           = [0; 1/2; 1/2; 1];
+        a           = [0, 0, 0, 0; ...
+                            1/2, 0, 0, 0; ...
+                            0, 1/2, 0, 0; ...
+                            0, 0, 1, 0];
+        b           = [1/6, 1/3, 1/3, 1/6];
+    
+        for k = 2 : 1 : n
+            t_k1        = t(k-1);
+            y_k1        = Y(:, k-1);
+            
+            h           = t(k) - t_k1;
+            
+            k1          = f(t_k1 + c(1) * h, ...
+                                y_k1, ...
+                                sys);
+            k2          = f(t_k1 + c(2) * h, ...
+                                y_k1 + h * (a(2, 1) * k1), ...
+                                sys);
+            k3          = f(t_k1 + c(3) * h, ...
+                                y_k1 + h * (a(3, 1) * k1 + a(3, 2) * k2), ...
+                                sys);
+            k4          = f(t_k1 + c(4) * h, ...
+                                y_k1 + h * (a(4, 1) * k1 + a(4, 2) * k2 + a(4, 3) * k3), ...
+                                sys);
+    
+            y_k         = y_k1 + h * (b(1) * k1 + b(2) * k2 + b(3) * k3 + b(4) * k4);
+            
+            Y(:, k)     = y_k;
+        end  
+    end  
 
+    function dx = aprior_assessment_x(t, x, sys)
+        dx = zeros(1);
+%         dx = sys.A*x + sys.B*
+    end
+
+    function dP = aprior_assessment_P(t, P, sys)
+        dP = zeros(1);
+        dP = sys.A*P + P*(sys.A)' + sys.Q;
+    end
+
+    function x = aposterior_assessment_x(dx, dP, sys, )
+%какой из х априорный или апостериорный идет в yk для подстановки в
+%апостериорный х?
